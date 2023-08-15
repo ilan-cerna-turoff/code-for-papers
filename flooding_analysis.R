@@ -1,5 +1,5 @@
 # File: Imputation and analysis of flooding and mental health in Peru
-# Date: 08/01/2023
+# Date: 08/15/2023
 # Author: Ilan Cerna-Turoff
 
 #------------------------------------------------------------------------------
@@ -11,7 +11,7 @@
 # Data preparation can be found at https://github.com/ilan-cerna-turoff/young_lives_data_preparation.
 # For additional information, contact the corresponding author directly.
 
-# Citation: Cerna-Turoff, I, Kang, H, Keyes, K. (2023). El Niño-driven flooding 
+# Citation: Cerna-Turoff I, Kang H, Keyes K. El Niño-driven flooding 
 # and mental health symptomology among adolescents and young adults in Peru. 
 # [INSERT FINAL JOURNAL LINK HERE].
 
@@ -148,28 +148,17 @@ love.plot(matched, stars = "raw", drop.distance = TRUE, var.names = new.names, t
 #------------------------------------------------------------------------------
 #### 4. ANALYSIS - FULL SAMPLE ####
 #------------------------------------------------------------------------------
-# 4a. Identify community clustering
-commid2 <- commid %>%
-  group_by(commid) %>%
-  mutate(com_count = n()) %>% #number of children within each cluster
-  ungroup() %>%
-  arrange(commid)
-
-# 4b. Create design effect 
-design <- svydesign(ids=~commid, weights =~com_count, data=commid2)
+# 4a. Run the models on the imputed datasets
+matched.models <- with(matched,
+                       svyglm(finalscore ~ flood, family = quasipoisson(link = "log")))
 
 # Note:
-# svydesign recommended for use with the MatchThem package at the analysis phase.
+# svydesign not needed with MatchThem. Weights for clustering automatically constructed. 
 
-# 4c. Run the models on the imputed datasets
-matched.models <- with(matched,
-                       svyglm(finalscore ~ flood, design = design, family = quasipoisson(link = "log")))
-
-
-# 4d. Pool across imputed datasets
+# 4b. Pool across imputed datasets
 summary(pool(matched.models), conf.int = TRUE)
 
-# 4e. Exponentiate
+# 4c. Exponentiate
 inverse_logit = function(x){ 
   exp(x)
 }
@@ -181,8 +170,8 @@ expected.result = inverse_logit(result.tibble$estimate)
 low.result = inverse_logit(result.tibble$`2.5 %`)
 high.result = inverse_logit(result.tibble$`97.5 %`)
 
-# 4f. Sensitivity analysis
-summary(evalue(RR(1.02), true = 1))  #minimum needed to move point estimate to the null
+# 4d. Sensitivity analysis
+summary(evalue(RR(1.02), true = 2))  #if true effect was 2
  
 #------------------------------------------------------------------------------
 #### 5. IMPUTATION - STRATIFIED SAMPLE BY GENDER ####
@@ -279,42 +268,18 @@ love.plot(matched2, stars = "raw", drop.distance = TRUE, var.names = new.names, 
 #------------------------------------------------------------------------------
 #### 7. ANALYSIS - STRATIFIED SAMPLE BY GENDER ####
 #------------------------------------------------------------------------------
-# 7a. Identify community clustering
-gender <- noexposure1 %>%
-  select(c(childid,chsex))
-
-gender.cluster <- left_join(commid, gender, by = "childid")
-
-gender.cluster1 <- gender.cluster %>%
-  filter(chsex == "female") %>%
-  group_by(commid) %>%
-  mutate(com_count = n()) %>% #number of children within each cluster
-  ungroup() %>%
-  arrange(commid)
-
-gender.cluster2 <- gender.cluster %>%
-  filter(chsex == "male") %>%
-  group_by(commid) %>%
-  mutate(com_count = n()) %>% #number of children within each cluster
-  ungroup() %>%
-  arrange(commid)
-
-# 7b. Create design effect 
-design.female <- svydesign(ids=~commid, weights =~com_count, data=gender.cluster1)
-design.male <- svydesign(ids=~commid, weights =~com_count, data=gender.cluster2)
-
-# 7c. Run the models on the imputed datasets
+# 7a. Run the models on the imputed datasets
 matched.models1 <- with(matched1,
-                        svyglm(finalscore ~ flood, design = design.female, family = quasipoisson(link = "log")))
+                        svyglm(finalscore ~ flood, family = quasipoisson(link = "log")))
 
 matched.models2 <- with(matched2,
-                        svyglm(finalscore ~ flood, design = design.male, family = quasipoisson(link = "log")))
+                        svyglm(finalscore ~ flood, family = quasipoisson(link = "log")))
 
-# 7d. Pool across imputed datasets
+# 7b. Pool across imputed datasets
 summary(pool(matched.models1), conf.int = TRUE)
 summary(pool(matched.models2), conf.int = TRUE)
 
-# 7e. Exponentiate
+# 7c. Exponentiate
 # Female
 tibble1 <-  tibble(summary(pool(matched.models1), conf.int = TRUE)) %>%
   filter(row_number()==2)
@@ -331,9 +296,9 @@ expected2 = inverse_logit(tibble2$estimate)
 low2 = inverse_logit(tibble2$`2.5 %`)
 high2 = inverse_logit(tibble2$`97.5 %`)
 
-# 7f. Sensitivity analyses
+# 7d. Sensitivity analyses
 #Female
-summary(evalue(RR(0.97), true = 1)) #minimum needed to move point estimate to the null
+summary(evalue(RR(0.97), true = 2)) #if true effect was 2
 
 #Male
-summary(evalue(RR(1.06), true = 1)) 
+summary(evalue(RR(1.06), true = 2)) 
